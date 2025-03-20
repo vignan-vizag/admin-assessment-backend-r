@@ -1,6 +1,8 @@
 const { Test } = require('../models/testModel');
 
-// Admin API: Create Test (with questions)
+const validCategories = ["Coding", "Math", "Behavioral", "Aptitude"];
+
+// Admin API: Create or Update Category inside a Test
 exports.createTest = async (req, res) => {
   const { testName, categoryName, questionsText } = req.body;
 
@@ -8,21 +10,66 @@ exports.createTest = async (req, res) => {
     return res.status(400).json({ message: "Test name, category, and questions are required" });
   }
 
-  // Parse questionsText (textarea format)
-  const parsedQuestions = questionsText.split('\n\n').map(block => {
-    const [questionLine, ...rest] = block.split('\n');
-    const question = questionLine.trim();
-    const options = rest.filter(line => line.startsWith('(')).map(opt => opt.slice(1, -1));
-    const correct = rest.find(line => line.startsWith('['))?.slice(1, -1);
+  const trimmedTestName = testName.trim();
+  const trimmedCategoryName = categoryName.trim();
 
-    return { question, options, correctAnswer: correct };
-  });
+  if (!validCategories.map(c => c.toLowerCase()).includes(trimmedCategoryName.toLowerCase())) {
+    return res.status(400).json({ message: `Invalid category. Allowed categories: ${validCategories.join(", ")}` });
+  }
+
+  // Parse questionsText (new format)
+  const parsedQuestions = [];
+  const lines = questionsText.split('\n').filter(line => line.trim());
+
+  for (const line of lines) {
+    const match = line.match(/^(.*?)\s*\((.*?)\)\s*\[(.*?)\]$/);
+    if (!match) {
+      return res.status(400).json({ message: `Invalid format on line: "${line}". Follow: Question (opt1, opt2, opt3, opt4) [correct]` });
+    }
+
+    const question = match[1].trim();
+    const options = match[2].split(',').map(opt => opt.trim());
+    const correctAnswer = match[3].trim();
+
+    if (options.length !== 4) {
+      return res.status(400).json({ message: `Question "${question}" must have exactly 4 options.` });
+    }
+
+    if (!options.includes(correctAnswer)) {
+      return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${question}".` });
+    }
+
+    parsedQuestions.push({
+      question,
+      options,
+      correctAnswer,
+    });
+  }
 
   try {
-    const newTest = await Test.create({ testName, categoryName, questions: parsedQuestions });
-    res.status(201).json({ message: "Test created successfully", test: newTest });
+    let test = await Test.findOne({ testName: trimmedTestName });
+
+    if (!test) {
+      test = await Test.create({
+        testName: trimmedTestName,
+        categories: [{ categoryName: trimmedCategoryName, questions: parsedQuestions }]
+      });
+    } else {
+      const categoryIndex = test.categories.findIndex(
+        c => c.categoryName.toLowerCase() === trimmedCategoryName.toLowerCase()
+      );
+
+      if (categoryIndex > -1) {
+        test.categories[categoryIndex].questions = parsedQuestions;
+      } else {
+        test.categories.push({ categoryName: trimmedCategoryName, questions: parsedQuestions });
+      }
+      await test.save();
+    }
+
+    res.status(201).json({ message: "Test and category saved successfully", test });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -30,18 +77,40 @@ exports.createTest = async (req, res) => {
 exports.getRandomQuestions = async (req, res) => {
   const { categoryName, testName } = req.params;
 
-  try {
-    const test = await Test.findOne({ categoryName, testName });
-    if (!test || !test.questions.length) {
-      return res.status(404).json({ message: "Test not found or has no questions." });
-    }
-    
+  const trimmedTestName = testName.trim();
+  const trimmedCategoryName = categoryName.trim();
 
-    const shuffled = test.questions.sort(() => 0.5 - Math.random());
+  if (!validCategories.map(c => c.toLowerCase()).includes(trimmedCategoryName.toLowerCase())) {
+    return res.status(400).json({ message: `Invalid category. Allowed categories: ${validCategories.join(", ")}` });
+  }
+
+  try {
+    const test = await Test.findOne({ testName: trimmedTestName });
+    if (!test) {
+      return res.status(404).json({ message: "Test not found." });
+    }
+
+    const category = test.categories.find(
+      cat => cat.categoryName.toLowerCase() === trimmedCategoryName.toLowerCase()
+    );
+    if (!category || !category.questions.length) {
+      return res.status(404).json({ message: "Category not found or has no questions." });
+    }
+
+    const shuffled = [...category.questions].sort(() => 0.5 - Math.random());
     const selectedQuestions = shuffled.slice(0, 20);
 
     res.json({ questions: selectedQuestions });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+exports.getAllTests = async (req, res) => {
+  try {
+    const tests = await Test.find({}, "testName categories.categoryName");
+    res.status(200).json(tests);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching tests", error });
   }
 };

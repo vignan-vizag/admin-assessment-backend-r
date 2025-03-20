@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { createTest, getRandomQuestions } = require('../controllers/testController');
+const { createTest, getRandomQuestions, getAllTests} = require('../controllers/testController');
 
-// Admin creates test with questions
-router.post('/create-test', createTest);
+// Admin: Create/Update test and its categories with questions
+router.post('/create', createTest);
 
-// Student gets 20 random questions for specific testName + categoryName
-router.get('/get-random/:categoryName/:testName', getRandomQuestions);
-
+// Student: Get 20 random questions from a specific category inside a test
+router.get('/get-random/:testName/:categoryName', getRandomQuestions);
+router.get("/all", getAllTests);
 module.exports = router;
