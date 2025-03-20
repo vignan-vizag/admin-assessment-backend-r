@@ -17,44 +17,30 @@ exports.createTest = async (req, res) => {
     return res.status(400).json({ message: `Invalid category. Allowed categories: ${validCategories.join(", ")}` });
   }
 
-  // Parse questionsText (textarea format)
+  // Parse questionsText (new format)
   const parsedQuestions = [];
-  const blocks = questionsText.split('\n\n').filter(block => block.trim());
+  const lines = questionsText.split('\n').filter(line => line.trim());
 
-  for (const block of blocks) {
-    const lines = block.split('\n').filter(line => line.trim());
-    const questionLine = lines[0];
-
-    if (!questionLine) {
-      return res.status(400).json({ message: "Each block must start with a question line." });
+  for (const line of lines) {
+    const match = line.match(/^(.*?)\s*\((.*?)\)\s*\[(.*?)\]$/);
+    if (!match) {
+      return res.status(400).json({ message: `Invalid format on line: "${line}". Follow: Question (opt1, opt2, opt3, opt4) [correct]` });
     }
 
-    const options = [];
-    let correctAnswer = null;
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('(') && line.endsWith(')')) {
-        options.push(line.slice(1, -1).trim());
-      } else if (line.startsWith('[') && line.endsWith(']')) {
-        correctAnswer = line.slice(1, -1).trim();
-      }
-    }
+    const question = match[1].trim();
+    const options = match[2].split(',').map(opt => opt.trim());
+    const correctAnswer = match[3].trim();
 
     if (options.length !== 4) {
-      return res.status(400).json({ message: `Question "${questionLine}" must have exactly 4 options.` });
-    }
-
-    if (!correctAnswer) {
-      return res.status(400).json({ message: `Question "${questionLine}" must have a correct answer marked as [answer].` });
+      return res.status(400).json({ message: `Question "${question}" must have exactly 4 options.` });
     }
 
     if (!options.includes(correctAnswer)) {
-      return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${questionLine}".` });
+      return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${question}".` });
     }
 
     parsedQuestions.push({
-      question: questionLine.trim(),
+      question,
       options,
       correctAnswer,
     });
@@ -111,7 +97,6 @@ exports.getRandomQuestions = async (req, res) => {
       return res.status(404).json({ message: "Category not found or has no questions." });
     }
 
-    // Shuffle & select
     const shuffled = [...category.questions].sort(() => 0.5 - Math.random());
     const selectedQuestions = shuffled.slice(0, 20);
 
@@ -120,9 +105,10 @@ exports.getRandomQuestions = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 exports.getAllTests = async (req, res) => {
   try {
-    const tests = await Test.find({}, "testName categoryName"); // Only return testName & categoryName
+    const tests = await Test.find({}, "testName categories.categoryName");
     res.status(200).json(tests);
   } catch (error) {
     res.status(500).json({ message: "Error fetching tests", error });
