@@ -1,7 +1,8 @@
+const { mongoConnect } = require("../mongoConnect.js");
+let yearsSuffix = "_passouts";
 const { Test } = require('../models/testModel');
 
 const validCategories = ["Coding", "Math", "Behavioral", "Aptitude"];
-
 // Admin API: Create or Update Category inside a Test
 exports.createTest = async (req, res) => {
   const { testName, categoryName, questionsText } = req.body;
@@ -68,6 +69,73 @@ exports.createTest = async (req, res) => {
     }
 
     res.status(201).json({ message: "Test and category saved successfully", test });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+exports.getStudentsRanks = async (req, res) => {
+  try {
+    let db = await mongoConnect();
+    const { year, testName, branch, section, category } = req.body;
+    if (!year) {
+      return res.status(500).json({ message: "Mention year mandatorily" });
+    }
+
+    let collectionName = `${year}${yearsSuffix}`;
+    let matchCond = {};
+    let categoriesSumArray = [];
+
+    if (testName) {
+      matchCond.testName = testName;
+    }
+    if (branch) {
+      matchCond.branch = branch;
+      if (section) {
+        matchCond.section = section;
+      }
+    }
+    if (category) {
+        categoriesSumArray.push(`$marks.${category}`)
+    } else {
+      categoriesSumArray = ["$marks.aptitude", "$marks.reasoning", "$marks.cognitive_skills"];
+    }
+    let pipeline = [
+      {
+        $match: matchCond
+      },
+      {
+        $addFields: {
+          totalMarks: {
+            $sum: categoriesSumArray
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          reg_no: 1,
+          name: 1,
+          aptitude: "$marks.aptitude",
+          reasoning: "$marks.reasoning",
+          cognitive_skills: "$marks.cognitive_skills",
+          totalMarks: 1,
+        }
+      },
+      {
+        $sort: {
+          totalMarks: -1
+        }
+      }
+    ]
+    let marksDocs = await db.collection(collectionName)
+      .aggregate(pipeline).toArray();
+    let rank = 1;
+    marksDocs.map((a) => {
+      a.rank = rank;
+      rank = rank + 1;
+    });
+    res.json({ studentsRanks: marksDocs });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
