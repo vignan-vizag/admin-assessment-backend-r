@@ -96,7 +96,7 @@ exports.getStudentsRanks = async (req, res) => {
       }
     }
     if (category) {
-        categoriesSumArray.push(`$marks.${category}`)
+      categoriesSumArray.push(`$marks.${category}`);
     } else {
       categoriesSumArray = ["$marks.aptitude", "$marks.reasoning", "$marks.cognitive_skills"];
     }
@@ -127,7 +127,7 @@ exports.getStudentsRanks = async (req, res) => {
           totalMarks: -1
         }
       }
-    ]
+    ];
     let marksDocs = await db.collection(collectionName)
       .aggregate(pipeline).toArray();
     let rank = 1;
