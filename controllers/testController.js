@@ -176,9 +176,24 @@ exports.getRandomQuestions = async (req, res) => {
 
 exports.getAllTests = async (req, res) => {
   try {
-    const tests = await Test.find({}, "testName categories.categoryName");
+    const tests = await Test.find({}, "testName categories.categoryName categories.questions");
     res.status(200).json(tests);
   } catch (error) {
     res.status(500).json({ message: "Error fetching tests", error });
+  }
+};
+
+exports.getTestById = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const test = await Test.findById(testId);
+
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    res.status(200).json(test);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
