@@ -1,6 +1,8 @@
 const { mongoConnect } = require("../mongoConnect.js");
 let yearsSuffix = "_passouts";
 const { Test } = require('../models/testModel');
+const { getStudentModelByYear } = require('../models/Student');
+
 
 const validCategories = ["Coding", "Math", "Behavioral", "Aptitude"];
 // Admin API: Create or Update Category inside a Test
