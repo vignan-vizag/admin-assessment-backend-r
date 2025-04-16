@@ -2,32 +2,28 @@ const mongoose = require('mongoose');
 const { getStudentModelByYear } = require('../models/Student');
 
 const getStudentById = async (req, res, next) => {
-    const { studentId, year } = req.params;
+    const { studentId } = req.params;
+    const year = req.query.year;
 
     if (!studentId || !year) {
         return res.status(400).json({ message: 'StudentId and year are required' });
     }
 
     try {
-        // Get the student model for the specific year
         const Student = getStudentModelByYear(year);
 
-        // Ensure the studentId is in a valid MongoDB ObjectId format
         if (!mongoose.Types.ObjectId.isValid(studentId)) {
             return res.status(400).json({ message: 'Invalid studentId format' });
         }
 
-        // Log to debug the query and model
         console.log(`Looking for student with _id: ${studentId} and year: ${year}`);
 
-        // Fetch the student by matching both _id and year
         const student = await Student.findOne({ _id: studentId }).select('-password');
 
         if (!student) {
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        // Return the student details
         res.json(student);
     } catch (error) {
         console.error('Error fetching student:', error);
@@ -36,19 +32,16 @@ const getStudentById = async (req, res, next) => {
     }
 };
 
-// Fetch all students or by specific year
 const getAllStudents = async (req, res, next) => {
     const year = parseInt(req.query.year);
 
     try {
         if (year) {
-            // Fetch students from a specific year
             const Student = getStudentModelByYear(year);
             const students = await Student.find().select('-password');
             return res.json(students);
         }
 
-        // Fetch students from all year_* collections
         const collections = await mongoose.connection.db.listCollections().toArray();
         const yearCollections = collections
             .filter(col => /^\d{4}_students$/.test(col.name))
@@ -200,4 +193,49 @@ const getStudentRankByTest = async (req, res, next) => {
 };
 
 
-module.exports = { getStudentById, getAllStudents, assignTestsToStudent, submitTestMarks, getStudentRankByTest };
+const startTest = async (req, res) => {
+    const { studentId, testId, year } = req.body;
+
+    // Validate required fields
+    if (!studentId || !testId || !year) {
+        return res.status(400).json({ message: 'studentId, testId, year are required' });
+    }
+
+    try {
+        // Retrieve the correct student model based on year
+        const Student = getStudentModelByYear(year);
+
+        // Find the student by studentId
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        // Check if the test is assigned to the student
+        const assignedTest = student.assignedTests.find(test => test.testId.toString() === testId);
+        if (!assignedTest) {
+            return res.status(404).json({ message: 'Test not found in assigned tests' });
+        }
+
+        // Check if the test is already started or completed
+        if (assignedTest.status !== 'pending') {
+            return res.status(400).json({ message: 'Test already started or completed' });
+        }
+
+        // Set the start time for the test
+        assignedTest.start = new Date();
+
+        // Update the test status to 'in progress' or similar if needed
+        assignedTest.status = 'in-progress'; // or any other status you'd like to set
+
+        // Save the updated student record
+        await student.save();
+
+        return res.status(200).json({ message: 'Test started successfully', start: assignedTest.start });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+module.exports = { getStudentById, getAllStudents, assignTestsToStudent, submitTestMarks, startTest, getStudentRankByTest };

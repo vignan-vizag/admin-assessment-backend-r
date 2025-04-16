@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createTest, getStudentsRanks, getRandomQuestions, getAllTests, getTestById } = require('../controllers/testController');
-const { assignTestsToStudent, submitTestMarks } = require('../controllers/students');
+const { assignTestsToStudent, submitTestMarks, startTest } = require('../controllers/students');
 // Admin: Create/Update test and its categories with questions
 router.post('/create', createTest);
 
@@ -10,6 +10,9 @@ router.post('/getStudentsRanks', getStudentsRanks);
 
 // POST /tests/:testId/assign
 router.post('/:testId/assign', assignTestsToStudent);
+
+// POST /tests/:testId/submit
+router.post('/:testId/start', startTest);
 
 // POST /tests/:testId/submit
 router.post('/:testId/submit', submitTestMarks);

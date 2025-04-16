@@ -12,6 +12,9 @@ router.get('/:studentId', getStudentById);
 // Get a student Rank by studentID and testID
 router.get('/rank/:studentId', getStudentRankByTest);
 
+// Get a student Rank by studentID and testID
+router.get('/startTest/:studentId', getStudentRankByTest);
+
 // Route for the student dashboard
 router.get('/dashboard', authenticate, (req, res) => {
   res.json({ message: `Welcome ${req.student.rollno}` });

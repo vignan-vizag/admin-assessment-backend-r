@@ -12,9 +12,11 @@ const studentSchema = new mongoose.Schema({
   semester: { type: Number, required: true },
   assignedTests: [{
     testId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Test', required: true },
-    status:      { type: String, enum: ['pending', 'completed'], default: 'pending' },
+    status:      { type: String, enum: ['pending', 'completed', 'in-progress'], default: 'pending' },
     marks:       { type: Map, of: Number, default: {}, required: function () { return this.status === 'completed'; } },
-    submittedAt: { type: Date, required: function () { return this.status === 'completed'; } }
+    submittedAt: { type: Date, required: function () { return this.status === 'completed'; } },
+    start:       { type: Date, required: false },
+    rank:        { type: Number, default: null }
   }]
 }, { timestamps: true });
 
