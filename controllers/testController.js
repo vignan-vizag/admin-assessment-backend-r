@@ -20,33 +20,61 @@ exports.createTest = async (req, res) => {
     return res.status(400).json({ message: `Invalid category. Allowed categories: ${validCategories.join(", ")}` });
   }
 
-  // Parse questionsText (new format)
   const parsedQuestions = [];
-  const lines = questionsText.split('\n').filter(line => line.trim());
+  const lines = questionsText.split('\n').map(l => l.trim()).filter(Boolean);
+  let i = 0;
 
-  for (const line of lines) {
-    const match = line.match(/^(.*?)\s*\((.*?)\)\s*\[(.*?)\]$/);
-    if (!match) {
-      return res.status(400).json({ message: `Invalid format on line: "${line}". Follow: Question (opt1, opt2, opt3, opt4) [correct]` });
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // --- FORMAT 1: Inline: "What is ...? (opt1, opt2, opt3, opt4) [answer]"
+    const inlineMatch = line.match(/^(.*?)\s*\((.*?)\)\s*\[(.*?)\]$/);
+    if (inlineMatch) {
+      const question = inlineMatch[1].trim();
+      const options = inlineMatch[2].split(',').map(o => o.trim());
+      const correctAnswer = inlineMatch[3].trim();
+
+      if (options.length !== 4) {
+        return res.status(400).json({ message: `Question "${question}" must have exactly 4 options.` });
+      }
+      if (!options.includes(correctAnswer)) {
+        return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${question}".` });
+      }
+
+      parsedQuestions.push({ question, options, correctAnswer });
+      i++;
+      continue;
     }
 
-    const question = match[1].trim();
-    const options = match[2].split(',').map(opt => opt.trim());
-    const correctAnswer = match[3].trim();
+    // --- FORMAT 2: Block format: Question: ...\n A)...B)... \n Answer: ...
+    if (line.startsWith("Question:")) {
+      const question = line.replace("Question:", "").trim();
+      const optionsLine = lines[i + 1];
+      const answerLine = lines[i + 2];
 
-    if (options.length !== 4) {
-      return res.status(400).json({ message: `Question "${question}" must have exactly 4 options.` });
+      if (!optionsLine || !answerLine || !answerLine.startsWith("Answer:")) {
+        return res.status(400).json({ message: `Invalid format near question: "${question}"` });
+      }
+
+      const optMatch = optionsLine.match(/A\)\s*(.*?)\s*B\)\s*(.*?)\s*C\)\s*(.*?)\s*D\)\s*(.*)/);
+      if (!optMatch) {
+        return res.status(400).json({ message: `Invalid options format for question: "${question}"` });
+      }
+
+      const options = optMatch.slice(1, 5).map(opt => opt.trim());
+      const correctAnswer = answerLine.replace("Answer:", "").trim();
+
+      if (!options.includes(correctAnswer)) {
+        return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${question}".` });
+      }
+
+      parsedQuestions.push({ question, options, correctAnswer });
+      i += 3;
+      continue;
     }
 
-    if (!options.includes(correctAnswer)) {
-      return res.status(400).json({ message: `Correct answer "${correctAnswer}" must be one of the 4 options for question "${question}".` });
-    }
-
-    parsedQuestions.push({
-      question,
-      options,
-      correctAnswer,
-    });
+    // handle unrecognized format
+    return res.status(400).json({ message: `Invalid format on line: "${line}". Use "Question (opt1, opt2, opt3, opt4) [correct]" or block format.` });
   }
 
   try {
@@ -75,6 +103,7 @@ exports.createTest = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 exports.getStudentsRanks = async (req, res) => {
   try {
