@@ -137,6 +137,7 @@ const submitTestMarks = async (req, res, next) => {
 
 const getStudentRankByTest = async (req, res, next) => {
     const { testId, studentId, year } = req.params;
+    const { returnAllRankings } = req.query; // New optional parameter
 
     if (!testId || !studentId || !year) {
         return res.status(400).json({ message: 'TestId, studentId, and year are required' });
@@ -145,20 +146,24 @@ const getStudentRankByTest = async (req, res, next) => {
     try {
         const Student = getStudentModelByYear(year);
 
-        const students = await Student.find({ 'assignedTests.testId': testId, 'assignedTests.status': 'completed' }).select('assignedTests.name assignedTests.marks');
+        // Get ALL students who completed the test - no limits
+        const students = await Student.find({ 
+            'assignedTests.testId': testId, 
+            'assignedTests.status': 'completed' 
+        }).select('assignedTests name');
 
         if (!students || students.length === 0) {
             return res.status(404).json({ message: 'No students have completed the test yet' });
         }
 
+        // Process ALL students to get their rankings
         const studentsWithRank = students.map(student => {
             const assignedTest = student.assignedTests.find(test => test.testId.toString() === testId);
             const marks = assignedTest.marks;
 
             const totalMarks = Object.values(marks).reduce((sum, categoryMarks) => sum + categoryMarks, 0);
-
             const totalQuestions = Object.keys(marks).length;
-            const percentage = (totalMarks / totalQuestions) * 100;
+            const percentage = totalQuestions > 0 ? (totalMarks / totalQuestions) * 100 : 0;
 
             return {
                 studentId: student._id,
@@ -169,7 +174,13 @@ const getStudentRankByTest = async (req, res, next) => {
             };
         });
 
+        // Sort ALL students by percentage (highest first)
         studentsWithRank.sort((a, b) => b.percentage - a.percentage);
+
+        // Assign ranks to ALL students
+        studentsWithRank.forEach((student, index) => {
+            student.rank = index + 1;
+        });
 
         const studentRank = studentsWithRank.findIndex(student => student.studentId.toString() === studentId) + 1;
 
@@ -178,11 +189,29 @@ const getStudentRankByTest = async (req, res, next) => {
         }
 
         const studentDetails = studentsWithRank.find(student => student.studentId.toString() === studentId);
+        
+        // If returnAllRankings is requested, return complete rankings
+        if (returnAllRankings === 'true') {
+            return res.json({
+                requestedStudent: {
+                    rank: studentRank,
+                    percentage: studentDetails.percentage,
+                    totalMarks: studentDetails.totalMarks,
+                    totalQuestions: studentDetails.totalQuestions
+                },
+                allRankings: studentsWithRank,
+                totalStudents: studentsWithRank.length,
+                message: `Returning all ${studentsWithRank.length} students who completed the test`
+            });
+        }
+
+        // Default response - just the requested student's rank
         res.json({
             rank: studentRank,
             percentage: studentDetails.percentage,
             totalMarks: studentDetails.totalMarks,
-            totalQuestions: studentDetails.totalQuestions
+            totalQuestions: studentDetails.totalQuestions,
+            totalStudents: studentsWithRank.length
         });
 
     } catch (error) {
@@ -238,4 +267,70 @@ const startTest = async (req, res) => {
     }
 };
 
-module.exports = { getStudentById, getAllStudents, assignTestsToStudent, submitTestMarks, startTest, getStudentRankByTest };
+const getAllStudentRanksByTest = async (req, res, next) => {
+    const { testId, year } = req.params;
+
+    if (!testId || !year) {
+        return res.status(400).json({ message: 'TestId and year are required' });
+    }
+
+    try {
+        const Student = getStudentModelByYear(year);
+
+        // Get ALL students who completed the test
+        const students = await Student.find({ 
+            'assignedTests.testId': testId, 
+            'assignedTests.status': 'completed' 
+        }).select('assignedTests name rollno branch section');
+
+        if (!students || students.length === 0) {
+            return res.status(404).json({ message: 'No students have completed the test yet' });
+        }
+
+        // Process ALL students to get their rankings
+        const studentsWithRank = students.map(student => {
+            const assignedTest = student.assignedTests.find(test => test.testId.toString() === testId);
+            const marks = assignedTest.marks;
+
+            const totalMarks = Object.values(marks).reduce((sum, categoryMarks) => sum + categoryMarks, 0);
+            const totalQuestions = Object.keys(marks).length;
+            const percentage = totalQuestions > 0 ? (totalMarks / totalQuestions) * 100 : 0;
+
+            return {
+                studentId: student._id,
+                name: student.name,
+                rollno: student.rollno,
+                branch: student.branch,
+                section: student.section,
+                totalMarks,
+                totalQuestions,
+                percentage,
+                categoryWiseMarks: marks,
+                submittedAt: assignedTest.submittedAt
+            };
+        });
+
+        // Sort ALL students by percentage (highest first)
+        studentsWithRank.sort((a, b) => b.percentage - a.percentage);
+
+        // Assign ranks to ALL students
+        studentsWithRank.forEach((student, index) => {
+            student.rank = index + 1;
+        });
+
+        res.json({
+            allRankings: studentsWithRank,
+            totalStudents: studentsWithRank.length,
+            testId: testId,
+            year: year,
+            message: `Complete rankings for all ${studentsWithRank.length} students who completed the test`
+        });
+
+    } catch (error) {
+        console.error('Error fetching all student rankings:', error);
+        res.status(500).json({ message: 'Failed to fetch all student rankings', error: error.message });
+        next(error);
+    }
+};
+
+module.exports = { getStudentById, getAllStudents, assignTestsToStudent, submitTestMarks, startTest, getStudentRankByTest, getAllStudentRanksByTest };

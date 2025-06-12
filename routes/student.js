@@ -2,7 +2,7 @@ const express = require('express');
 const { authenticate } = require('../middlewares/auth');
 // const Student = require("../models/Student");
 const { Test } = require("../models/testModel");
-const { getAllStudents, getStudentById, getStudentRankByTest } = require('../controllers/students');
+const { getAllStudents, getStudentById, getStudentRankByTest, getAllStudentRanksByTest } = require('../controllers/students');
 
 const router = express.Router();
 
@@ -11,6 +11,9 @@ router.get('/:studentId', getStudentById);
 
 // Get a student Rank by studentID and testID
 router.get('/rank/:studentId', getStudentRankByTest);
+
+// Get ALL student rankings for a specific test (for complete reports)
+router.get('/rankings/:testId/:year', getAllStudentRanksByTest);
 
 // Get a student Rank by studentID and testID
 router.get('/startTest/:studentId', getStudentRankByTest);

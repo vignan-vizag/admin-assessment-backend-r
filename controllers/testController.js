@@ -158,15 +158,26 @@ exports.getStudentsRanks = async (req, res) => {
           totalMarks: -1
         }
       }
+      // No $limit stage - returns ALL students who match the criteria
     ];
+    
+    // Fetch ALL matching students from the database
     let marksDocs = await db.collection(collectionName)
       .aggregate(pipeline).toArray();
+    
+    // Assign ranks to ALL students
     let rank = 1;
     marksDocs.map((a) => {
       a.rank = rank;
       rank = rank + 1;
     });
-    res.json({ studentsRanks: marksDocs });
+    
+    // Return ALL students with their ranks
+    res.json({ 
+      studentsRanks: marksDocs,
+      totalCount: marksDocs.length,
+      message: `Returning all ${marksDocs.length} students who match the criteria`
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
