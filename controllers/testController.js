@@ -83,7 +83,8 @@ exports.createTest = async (req, res) => {
     if (!test) {
       test = await Test.create({
         testName: trimmedTestName,
-        categories: [{ categoryName: trimmedCategoryName, questions: parsedQuestions }]
+        categories: [{ categoryName: trimmedCategoryName, questions: parsedQuestions }],
+        status: 'offline' // New tests are offline by default
       });
     } else {
       const categoryIndex = test.categories.findIndex(
@@ -195,9 +196,9 @@ exports.getRandomQuestions = async (req, res) => {
   }
 
   try {
-    const test = await Test.findOne({ testName: trimmedTestName });
+    const test = await Test.findOne({ testName: trimmedTestName, status: 'live' });
     if (!test) {
-      return res.status(404).json({ message: "Test not found." });
+      return res.status(404).json({ message: "Test not found or not available." });
     }
 
     const category = test.categories.find(
@@ -218,7 +219,7 @@ exports.getRandomQuestions = async (req, res) => {
 
 exports.getAllTests = async (req, res) => {
   try {
-    const tests = await Test.find({}, "testName categories.categoryName categories.questions");
+    const tests = await Test.find({}, "testName categories.categoryName categories.questions status createdAt updatedAt");
     res.status(200).json(tests);
   } catch (error) {
     res.status(500).json({ message: "Error fetching tests", error });
@@ -254,6 +255,7 @@ exports.updateTest = async (req, res) => {
     if (testName) {
       updateData.testName = testName.trim();
     }
+    updateData.updatedAt = new Date();
 
     const updatedTest = await Test.findByIdAndUpdate(
       testId,
@@ -511,6 +513,70 @@ exports.deleteCategory = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Update test status (live/offline)
+exports.updateTestStatus = async (req, res) => {
+  const { testId } = req.params;
+  const { status } = req.body;
+
+  if (!testId) {
+    return res.status(400).json({ message: "Test ID is required" });
+  }
+
+  if (!status || !['live', 'offline'].includes(status)) {
+    return res.status(400).json({ message: "Status must be either 'live' or 'offline'" });
+  }
+
+  try {
+    const updatedTest = await Test.findByIdAndUpdate(
+      testId,
+      { 
+        status,
+        updatedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedTest) {
+      return res.status(404).json({ message: "Test not found" });
+    }
+
+    res.status(200).json({ 
+      message: `Test status updated to '${status}' successfully`, 
+      test: updatedTest 
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Get all live tests (for students)
+exports.getLiveTests = async (req, res) => {
+  try {
+    const liveTests = await Test.find({ status: 'live' }, "testName categories.categoryName categories.questions status createdAt updatedAt");
+    res.status(200).json({
+      message: "Live tests retrieved successfully",
+      tests: liveTests,
+      count: liveTests.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching live tests", error });
+  }
+};
+
+// Get all tests with status (for admin management)
+exports.getAllTestsWithStatus = async (req, res) => {
+  try {
+    const tests = await Test.find({}, "testName categories.categoryName categories.questions status createdAt updatedAt");
+    res.status(200).json({
+      message: "All tests retrieved successfully",
+      tests: tests,
+      count: tests.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching tests", error });
   }
 };
 

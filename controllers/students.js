@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { getStudentModelByYear } = require('../models/Student');
+const { Test } = require('../models/testModel');
 
 const getStudentById = async (req, res, next) => {
     const { studentId } = req.params;
@@ -73,6 +74,16 @@ const assignTestsToStudent = async (req, res, next) => {
     }
 
     try {
+        // Check if test exists and is live
+        const test = await Test.findById(testId);
+        if (!test) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+        
+        if (test.status !== 'live') {
+            return res.status(400).json({ message: 'Cannot assign offline tests to students. Please make the test live first.' });
+        }
+
         const Student = getStudentModelByYear(year);
 
         const updateResult = await Student.updateMany(
@@ -231,6 +242,16 @@ const startTest = async (req, res) => {
     }
 
     try {
+        // Check if test exists and is live
+        const test = await Test.findById(testId);
+        if (!test) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+        
+        if (test.status !== 'live') {
+            return res.status(400).json({ message: 'Test is not available. Please contact your administrator.' });
+        }
+
         // Retrieve the correct student model based on year
         const Student = getStudentModelByYear(year);
 

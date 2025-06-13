@@ -166,6 +166,49 @@ curl -X POST http://localhost:4000/api/tests/YOUR_TEST_ID_HERE/submit \
   }'
 ```
 
+## 19. UPDATE TEST STATUS (LIVE/OFFLINE) - NEW
+```bash
+curl -X PUT http://localhost:4000/api/tests/YOUR_TEST_ID_HERE/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "live"
+  }'
+```
+
+## 20. GET ALL TESTS WITH STATUS (ADMIN) - NEW
+```bash
+curl -X GET http://localhost:4000/api/tests/admin/all
+```
+
+## 21. GET ONLY LIVE TESTS (STUDENTS) - NEW
+```bash
+curl -X GET http://localhost:4000/api/tests/live
+```
+
+---
+
+## Test Status Management
+
+### Status Values:
+- `"live"` - Test is active and available to students
+- `"offline"` - Test is inactive and not visible to students
+
+### Default Behavior:
+- All new tests are created with status `"offline"` by default
+- Admin must manually change status to `"live"` to make tests available to students
+- Students can only see and access tests with status `"live"`
+- Students cannot see tests with status `"offline"`
+
+### Admin Management:
+- Use `GET /api/tests/admin/all` to see all tests with their current status
+- Use `PUT /api/tests/:testId/status` to change test status
+- Use `GET /api/tests/all` for backward compatibility (shows all tests with status)
+
+### Student Access:
+- Use `GET /api/tests/live` to get only live/available tests
+- Students should only be allowed to access live tests for taking exams
+- `GET /api/tests/get-random/:testName/:categoryName` now only works for live tests
+
 ---
 
 ## Question Format Examples:

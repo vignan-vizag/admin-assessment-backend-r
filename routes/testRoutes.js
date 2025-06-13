@@ -13,11 +13,32 @@ const {
   getStudentsRanks, 
   getRandomQuestions, 
   getAllTests, 
-  getTestById 
+  getTestById,
+  updateTestStatus,
+  getLiveTests,
+  getAllTestsWithStatus
 } = require('../controllers/testController');
 const { assignTestsToStudent, submitTestMarks, startTest } = require('../controllers/students');
 // Admin: Create/Update test and its categories with questions
 router.post('/create', createTest);
+
+// Admin: Get all tests with status information (for management)
+router.get('/admin/all', getAllTestsWithStatus);
+
+// Student: Get only live tests (for students)
+router.get('/live', getLiveTests);
+
+// Get all tests (backward compatibility)
+router.get("/all", getAllTests);
+
+// Updated: Use POST for getStudentsRanks
+router.post('/getStudentsRanks', getStudentsRanks);
+
+// Student: Get 20 random questions from a specific category inside a test
+router.get('/get-random/:testName/:categoryName', getRandomQuestions);
+
+// Admin: Update test status (live/offline)
+router.put('/:testId/status', updateTestStatus);
 
 // Admin: Update existing test
 router.put('/:testId', updateTest);
