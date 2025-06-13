@@ -1,9 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const { createTest, getStudentsRanks, getRandomQuestions, getAllTests, getTestById } = require('../controllers/testController');
+const { 
+  createTest, 
+  updateTest, 
+  updateCategory, 
+  addCategory, 
+  deleteCategory, 
+  updateQuestion, 
+  addQuestion,
+  deleteQuestion, 
+  deleteTest, 
+  getStudentsRanks, 
+  getRandomQuestions, 
+  getAllTests, 
+  getTestById 
+} = require('../controllers/testController');
 const { assignTestsToStudent, submitTestMarks, startTest } = require('../controllers/students');
 // Admin: Create/Update test and its categories with questions
 router.post('/create', createTest);
+
+// Admin: Update existing test
+router.put('/:testId', updateTest);
+
+// Admin: Update a specific category within a test
+router.put('/:testId/categories/:categoryId', updateCategory);
+
+// Admin: Add a new category to an existing test
+router.post('/:testId/categories', addCategory);
+
+// Admin: Delete a category from a test
+router.delete('/:testId/categories/:categoryId', deleteCategory);
+
+// Admin: Add a single question to an existing category
+router.post('/:testId/categories/:categoryId/questions', addQuestion);
+
+// Admin: Update a specific question within a category
+router.put('/:testId/categories/:categoryId/questions/:questionId', updateQuestion);
+
+// Admin: Delete a specific question from a category
+router.delete('/:testId/categories/:categoryId/questions/:questionId', deleteQuestion);
+
+// Admin: Delete an entire test
+router.delete('/:testId', deleteTest);
 
 // Updated: Use POST for getStudentsRanks
 router.post('/getStudentsRanks', getStudentsRanks);
