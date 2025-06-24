@@ -1,11 +1,14 @@
 const express = require('express');
-const { adminLogin, getAdminProfile, getLeaderboard } = require('../controllers/adminAuth');
+const { adminLogin, getAdminProfile, getLeaderboard, validateAdminToken } = require('../controllers/adminAuth');
 const { authenticateAdmin } = require('../middlewares/adminAuth');
 
 const router = express.Router();
 
 // Admin login route
 router.post('/login', adminLogin);
+
+// Admin token validation route (protected)
+router.get('/validate', authenticateAdmin, validateAdminToken);
 
 // Admin profile route (protected)
 router.get('/profile', authenticateAdmin, getAdminProfile);

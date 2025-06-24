@@ -121,14 +121,40 @@ const submitTestMarks = async (req, res, next) => {
     try {
         const Student = getStudentModelByYear(year);
 
-        // Always overwrite marks and mark test as completed
+        // Calculate total score from marks object
+        const totalTestScore = Object.values(marks).reduce((sum, score) => sum + (score || 0), 0);
+
+        // Get the current student to check if test was already completed
+        const student = await Student.findOne(
+            { _id: studentId, 'assignedTests.testId': testId },
+            { 'assignedTests.$': 1, totalmarks: 1 }
+        );
+
+        if (!student) {
+            return res.status(404).json({ message: 'Assigned test not found for the student' });
+        }
+
+        const currentTest = student.assignedTests[0];
+        let previousTestScore = 0;
+
+        // If test was already completed, subtract the previous score
+        if (currentTest.status === 'completed' && currentTest.marks) {
+            const previousMarks = currentTest.marks.toObject();
+            previousTestScore = Object.values(previousMarks).reduce((sum, score) => sum + (score || 0), 0);
+        }
+
+        // Calculate new total marks (remove old score if any, add new score)
+        const newTotalMarks = (student.totalmarks || 0) - previousTestScore + totalTestScore;
+
+        // Always overwrite marks and mark test as completed, also update totalmarks
         const result = await Student.updateOne(
             { _id: studentId, 'assignedTests.testId': testId },
             {
                 $set: {
                     'assignedTests.$.marks': marks,
                     'assignedTests.$.status': 'completed',
-                    'assignedTests.$.submittedAt': new Date()
+                    'assignedTests.$.submittedAt': new Date(),
+                    'totalmarks': newTotalMarks
                 }
             }
         );
@@ -137,7 +163,12 @@ const submitTestMarks = async (req, res, next) => {
             return res.status(404).json({ message: 'Assigned test not found for the student' });
         }
 
-        res.json({ message: 'Test marks submitted and overwritten successfully', modifiedCount: result.modifiedCount });
+        res.json({ 
+            message: 'Test marks submitted and overwritten successfully', 
+            modifiedCount: result.modifiedCount,
+            totalTestScore: totalTestScore,
+            newTotalMarks: newTotalMarks
+        });
     } catch (error) {
         console.error('Error submitting test marks:', error);
         res.status(500).json({ message: 'Failed to submit test marks', error: error.message });

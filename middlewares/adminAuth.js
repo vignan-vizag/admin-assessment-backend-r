@@ -6,7 +6,10 @@ const authenticateAdmin = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ message: 'Admin authentication required' });
+    return res.status(401).json({ 
+      message: 'Admin authentication required',
+      error: 'No token provided'
+    });
   }
 
   try {
@@ -14,21 +17,44 @@ const authenticateAdmin = async (req, res, next) => {
 
     // Check if token is for admin
     if (decodedToken.type !== 'admin') {
-      return res.status(403).json({ message: 'Admin access required' });
+      return res.status(403).json({ 
+        message: 'Admin access required',
+        error: 'Invalid token type'
+      });
     }
 
     const { adminId } = decodedToken;
     const admin = await Admin.findById(adminId).select('-password');
 
     if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
+      return res.status(404).json({ 
+        message: 'Admin not found',
+        error: 'Admin account may have been deleted'
+      });
     }
 
     req.admin = admin;
     next();
   } catch (error) {
-    console.error('Admin authentication error:', error);
-    res.status(401).json({ message: 'Invalid admin token' });
+    console.error('Admin authentication error:', error.message);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        message: 'Admin token expired',
+        error: 'Please login again',
+        expired: true
+      });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        message: 'Invalid admin token',
+        error: 'Token is malformed or invalid'
+      });
+    } else {
+      return res.status(401).json({ 
+        message: 'Admin authentication failed',
+        error: error.message
+      });
+    }
   }
 };
 

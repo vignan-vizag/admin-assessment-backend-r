@@ -62,8 +62,12 @@ const login = async (req, res, next) => {
       return res.status(401).json({ message: 'Incorrect password' });
     }
 
-    const token = jwt.sign({ userId: student._id, year: student.year }, process.env.SECRET_KEY, {
-      expiresIn: '1 hour'
+    const token = jwt.sign({ 
+      userId: student._id, 
+      year: student.year,
+      type: 'student'
+    }, process.env.SECRET_KEY, {
+      expiresIn: '8h' // Extended session time like admin
     });
 
     res.json({ token, student });
@@ -73,4 +77,32 @@ const login = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login };
+// Validate token and get student info
+const validateToken = async (req, res, next) => {
+  try {
+    // If we reach here, the authenticate middleware has passed
+    // This means the token is valid and req.student is populated
+    res.json({
+      valid: true,
+      student: {
+        id: req.student._id,
+        rollno: req.student.rollno,
+        name: req.student.name,
+        year: req.student.year,
+        branch: req.student.branch,
+        section: req.student.section,
+        totalmarks: req.student.totalmarks || 0
+      },
+      message: 'Token is valid'
+    });
+  } catch (error) {
+    console.error('Error validating token:', error);
+    res.status(500).json({ 
+      valid: false,
+      message: 'Token validation failed',
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { register, login, validateToken };

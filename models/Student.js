@@ -10,6 +10,7 @@ const studentSchema = new mongoose.Schema({
   branch:   { type: String, required: true },
   section:  { type: String, required: true },
   semester: { type: Number, required: true },
+  totalmarks: { type: Number, default: 0 }, // Total marks scored across all tests
   assignedTests: [{
     testId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Test', required: true },
     status:      { type: String, enum: ['pending', 'completed', 'in-progress'], default: 'pending' },

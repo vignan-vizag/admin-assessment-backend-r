@@ -113,28 +113,25 @@ const getLeaderboard = async (req, res, next) => {
     // Get all students who have completed at least one test
     const students = await Student.find({
       'assignedTests.status': 'completed'
-    }).select('name rollno branch section assignedTests');
+    }).select('name rollno branch section assignedTests totalmarks');
 
     if (!students || students.length === 0) {
       return res.status(404).json({ message: 'No students found with completed tests for this year' });
     }
 
-    // Calculate total scores for each student
+    // Calculate detailed scores for each student (for category breakdown)
     const studentScores = students.map(student => {
-      let totalScore = 0;
       let totalTests = 0;
       let categoryTotals = { coding: 0, aptitude: 0, reasoning: 0, verbal: 0 };
 
       student.assignedTests.forEach(assignedTest => {
         if (assignedTest.status === 'completed' && assignedTest.marks) {
-          // Sum up scores from all categories in this test
+          // Sum up scores from all categories in this test for breakdown
           const marksObj = assignedTest.marks.toObject();
-          let testScore = 0;
           
-          // Update category totals and test score
+          // Update category totals
           Object.keys(marksObj).forEach(category => {
             const categoryScore = marksObj[category] || 0;
-            testScore += categoryScore;
             
             // Update category totals (normalize case)
             const categoryLower = category.toLowerCase();
@@ -143,10 +140,12 @@ const getLeaderboard = async (req, res, next) => {
             }
           });
           
-          totalScore += testScore;
           totalTests += 1;
         }
       });
+
+      // Use the totalmarks field from database instead of calculating
+      const totalScore = student.totalmarks || 0;
 
       return {
         studentId: student._id,
@@ -185,9 +184,34 @@ const getLeaderboard = async (req, res, next) => {
   }
 };
 
+// Validate admin token and get admin info
+const validateAdminToken = async (req, res, next) => {
+  try {
+    // If we reach here, the authenticateAdmin middleware has passed
+    // This means the token is valid and req.admin is populated
+    res.json({
+      valid: true,
+      admin: {
+        id: req.admin._id,
+        username: req.admin.username,
+        role: req.admin.role
+      },
+      message: 'Admin token is valid'
+    });
+  } catch (error) {
+    console.error('Error validating admin token:', error);
+    res.status(500).json({ 
+      valid: false,
+      message: 'Admin token validation failed',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = { 
   adminLogin, 
   createDefaultAdmins,
   getAdminProfile,
-  getLeaderboard
+  getLeaderboard,
+  validateAdminToken
 };

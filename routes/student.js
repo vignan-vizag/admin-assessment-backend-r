@@ -56,14 +56,24 @@ router.post("/submit", authenticate, async (req, res) => {
       }
     }
 
+    // Get previous score if test was already completed (for re-submission handling)
+    const previousScore = assignedTest.status === 'completed' ? (assignedTest.score || 0) : 0;
+
     // update assigned test status and score
     assignedTest.status = 'completed';
     assignedTest.score = score;
     assignedTest.submittedAt = new Date();
 
+    // Update total marks: remove previous score (if any) and add new score
+    student.totalmarks = (student.totalmarks || 0) - previousScore + score;
+
     await student.save();
 
-    res.status(200).json({ message: "Exam submitted successfully", score });
+    res.status(200).json({ 
+      message: "Exam submitted successfully", 
+      score,
+      totalmarks: student.totalmarks 
+    });
   } catch (error) {
     res.status(500).json({ error: "Error submitting exam", details: error.message });
   }
