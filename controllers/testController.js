@@ -4,7 +4,7 @@ const { Test } = require('../models/testModel');
 const { getStudentModelByYear } = require('../models/Student');
 
 
-const validCategories = ["Coding", "Math", "Behavioral", "Aptitude"];
+const validCategories = ["Coding", "Aptitude", "Reasoning", "Verbal"];
 // Admin API: Create or Update Category inside a Test
 exports.createTest = async (req, res) => {
   const { testName, categoryName, questionsText } = req.body;
@@ -130,7 +130,7 @@ exports.getStudentsRanks = async (req, res) => {
     if (category) {
       categoriesSumArray.push(`$marks.${category}`);
     } else {
-      categoriesSumArray = ["$marks.aptitude", "$marks.reasoning", "$marks.cognitive_skills"];
+      categoriesSumArray = ["$marks.coding", "$marks.aptitude", "$marks.reasoning", "$marks.verbal"];
     }
     let pipeline = [
       {
@@ -148,9 +148,10 @@ exports.getStudentsRanks = async (req, res) => {
           _id: 0,
           reg_no: 1,
           name: 1,
+          coding: "$marks.coding",
           aptitude: "$marks.aptitude",
           reasoning: "$marks.reasoning",
-          cognitive_skills: "$marks.cognitive_skills",
+          verbal: "$marks.verbal",
           totalMarks: 1,
         }
       },

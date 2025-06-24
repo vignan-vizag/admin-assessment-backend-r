@@ -7,7 +7,7 @@ const questionSchema = new mongoose.Schema({
 });
 
 const categorySchema = new mongoose.Schema({
-  categoryName: { type: String, required: true }, // "Coding", "Aptitude", etc.
+  categoryName: { type: String, required: true }, // "Coding", "Aptitude", "Reasoning", "Verbal"
   questions: [questionSchema]
 });
 
