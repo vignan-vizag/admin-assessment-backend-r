@@ -5,11 +5,15 @@ require("dotenv").config();
 
 // Import Routes
 const authRoutes = require('./routes/auth');
+const adminAuthRoutes = require('./routes/adminAuth');
 const examRoutes = require("./routes/examRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const studentRoutes = require('./routes/student');
 // const studentRoutes = require("./routes/studentRoutes");
 const testRoutes = require('./routes/testRoutes');
+
+// Import admin controller for creating default accounts
+const { createDefaultAdmins } = require('./controllers/adminAuth');
 
 const app = express();
 
@@ -19,6 +23,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminAuthRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/students", studentRoutes);
@@ -32,5 +37,8 @@ app.get("/", (req, res) => {
 // Start Server
 const PORT = process.env.PORT || 3000;
 connectDB().then(() => {
+  // Create default admin accounts after DB connection
+  createDefaultAdmins();
+  
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

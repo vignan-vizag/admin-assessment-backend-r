@@ -1,10 +1,11 @@
 const express = require("express");
 const Exam = require("../models/Exam");
+const { authenticateAdmin, hodOrPrincipal } = require("../middlewares/adminAuth");
 
 const router = express.Router();
 
-// Create a new exam
-router.post("/create", async (req, res) => {
+// Create a new exam (Admin only)
+router.post("/create", authenticateAdmin, hodOrPrincipal, async (req, res) => {
   try {
     const { testName, categories, duration } = req.body;
 
@@ -17,8 +18,8 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// Start/Stop Exam
-router.post("/toggle-exam", async (req, res) => {
+// Start/Stop Exam (Admin only)
+router.post("/toggle-exam", authenticateAdmin, hodOrPrincipal, async (req, res) => {
   try {
     const { testName, status } = req.body;
 
