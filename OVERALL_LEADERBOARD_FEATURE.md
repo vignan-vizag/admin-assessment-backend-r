@@ -1,22 +1,28 @@
 # Overall Leaderboard Feature
 
 ## Overview
-The Overall Leaderboard feature provides a comprehensive ranking system that aggregates students from all graduation year collections and displays the top 25 students with the highest total marks across the entire institution.
+The Overall Leaderboard feature provides a comprehensive ranking system that displays the top students with the highest total marks for a specific graduation year. This gives an overall performance view across all tests for students within that particular year.
 
 ## Features
-- **Cross-Year Analysis**: Aggregates students from all available year collections (e.g., 2023_students, 2024_students, 2025_students, etc.)
-- **Top 25 Students**: Returns the highest scoring 25 students across all years
-- **Comprehensive Data**: Includes student details, scores, year information, and category breakdowns
+- **Year-Specific Analysis**: Shows top students from a specific graduation year
+- **Overall Performance Ranking**: Ranks students based on their total marks across all completed tests
+- **Advanced Filtering**: Filter by branch, section, and result limit
+- **Comprehensive Data**: Includes student details, scores, and category breakdowns
 - **Performance Optimized**: Uses the pre-calculated `totalmarks` field for fast queries
 
 ## API Endpoint
 
 ### GET `/api/admin/overall-leaderboard/:year`
 
-**Description**: Gets the top 25 students with highest total marks across all graduation year collections.
+**Description**: Gets the top students with highest total marks for a specific graduation year with optional filtering capabilities.
 
 **Parameters**:
-- `year` (path parameter): The graduation year context (required for API consistency, but returns data from all years)
+- `year` (path parameter): The graduation year to get leaderboard for (required)
+
+**Query Parameters (Optional)**:
+- `branch` (string): Filter students by academic branch (e.g., "CSE", "ECE", "MECH")
+- `section` (string): Filter students by section (requires branch parameter)
+- `limit` (number): Number of top students to return (1-100, default: 25)
 
 **Headers**:
 - `Authorization: Bearer <admin_token>` (required)
@@ -49,19 +55,24 @@ The Overall Leaderboard feature provides a comprehensive ranking system that agg
       }
     }
   ],
-  "totalStudentsEvaluated": 250,
-  "studentsFromYears": [2023, 2024, 2025, 2026],
-  "totalCollectionsProcessed": 7,
+  "appliedFilters": {
+    "graduationYear": "2026",
+    "branch": "CSE",
+    "section": "1",
+    "limit": 25
+  },
+  "totalStudentsEvaluated": 25,
+  "totalStudentsInYear": 150,
   "categories": ["Coding", "Aptitude", "Reasoning", "Verbal"],
-  "message": "Top 25 students overall leaderboard across all graduation years"
+  "message": "Top 25 students overall leaderboard for graduation year 2026 (Branch: CSE, Section: 1)"
 }
 ```
 
 ### Response Fields
 
 - `graduationYear`: The year parameter passed in the request
-- `overallLeaderboard`: Array of top 25 students with their rankings
-  - `rank`: Position in the overall leaderboard (1-25)
+- `overallLeaderboard`: Array of top N students with their rankings
+  - `rank`: Position in the overall leaderboard (1-N)
   - `studentId`: Unique student identifier
   - `name`: Student's full name
   - `rollno`: Student's roll number
@@ -72,27 +83,31 @@ The Overall Leaderboard feature provides a comprehensive ranking system that agg
   - `totalTests`: Number of tests completed
   - `averageScore`: Average score per test
   - `categoryBreakdown`: Detailed scores by category
-- `totalStudentsEvaluated`: Total number of students with scores across all years
-- `studentsFromYears`: Array of graduation years found in the data
-- `totalCollectionsProcessed`: Number of student collections examined
+- `appliedFilters`: Object showing the filters applied to the query
+  - `graduationYear`: The graduation year being analyzed
+  - `branch`: Branch filter applied or "All branches"
+  - `section`: Section filter applied or "All sections" 
+  - `limit`: Number of results returned
+- `totalStudentsEvaluated`: Total number of students with scores matching filters
+- `totalStudentsInYear`: Total number of students in the graduation year
 - `categories`: Available test categories
-- `message`: Descriptive message about the response
+- `message`: Descriptive message about the response including applied filters
 
 ## How It Works
 
-1. **Collection Discovery**: Automatically finds all student collections ending with '_students'
-2. **Year Parsing**: Extracts graduation year from collection names (e.g., '2026_students' → 2026)
-3. **Data Aggregation**: Queries each collection for students with completed tests
+1. **Year Selection**: Uses the specified graduation year from the URL parameter
+2. **Data Query**: Queries the specific year's student collection for students with completed tests
+3. **Filtering**: Applies optional branch and section filters
 4. **Score Calculation**: Uses the optimized `totalmarks` field for performance
-5. **Global Ranking**: Sorts all students across all years by total score
-6. **Top 25 Selection**: Returns the highest scoring 25 students
+5. **Ranking**: Sorts students by total score in descending order
+6. **Top N Selection**: Returns the highest scoring N students (default: 25)
 
 ## Use Cases
 
-1. **Institution-wide Excellence Recognition**: Identify top performers across all batches
-2. **Inter-batch Comparison**: Compare performance across different graduation years
-3. **Academic Analytics**: Analyze overall institutional performance trends
-4. **Scholarship/Award Selection**: Merit-based selections across all students
+1. **Year-wise Excellence Recognition**: Identify top performers within a specific graduation year
+2. **Branch-wise Analysis**: Compare performance within departments
+3. **Section-wise Ranking**: Analyze performance at section level
+4. **Merit-based Selections**: Rank students for awards, scholarships within a year
 
 ## Technical Notes
 
@@ -102,7 +117,7 @@ The Overall Leaderboard feature provides a comprehensive ranking system that agg
 - **Scalability**: Efficiently handles multiple year collections
 - **Consistency**: Uses the same calculation logic as individual year leaderboards
 
-## CURL Command Example
+## CURL Command Examples
 
 ```bash
 # 1. First, get admin authentication token
@@ -113,8 +128,28 @@ curl -X POST http://localhost:4000/api/admin/login \
     "password": "principal-viit"
   }'
 
-# 2. Use the token to get overall leaderboard
+# 2. Get overall leaderboard for 2026 (all students, all branches, top 25)
 curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+
+# 3. Get top 10 CSE students from 2026
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026?branch=CSE&limit=10" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+
+# 4. Get top 15 students from CSE Section 1 in 2026
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026?branch=CSE&section=1&limit=15" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+
+# 5. Get top 5 students from 2025 graduation year
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2025?limit=5" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+
+# 6. Get top 20 ECE students from 2024
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2024?branch=ECE&limit=20" \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
   -H "Content-Type: application/json"
 ```
@@ -128,6 +163,18 @@ curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
 }
 ```
 
+```json
+{
+  "message": "Limit must be between 1 and 100"
+}
+```
+
+```json
+{
+  "message": "Branch filter is required when using section filter"
+}
+```
+
 ### 401 - Unauthorized
 ```json
 {
@@ -135,16 +182,38 @@ curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
 }
 ```
 
-### 404 - No Data Found
+### 200 - No Data Found (Returns Success with Empty Results)
 ```json
 {
-  "message": "No student collections found"
+  "graduationYear": "2025",
+  "overallLeaderboard": [],
+  "appliedFilters": {
+    "graduationYear": "2025",
+    "branch": "All branches",
+    "section": "All sections",
+    "limit": 25
+  },
+  "totalStudentsEvaluated": 0,
+  "totalStudentsInYear": 0,
+  "categories": ["Coding", "Aptitude", "Reasoning", "Verbal"],
+  "message": "No students found with completed tests for year 2025"
 }
 ```
 
 ```json
 {
-  "message": "No students found with completed tests across all years"
+  "graduationYear": "2026",
+  "overallLeaderboard": [],
+  "appliedFilters": {
+    "graduationYear": "2026",
+    "branch": "CSE",
+    "section": "All sections", 
+    "limit": 25
+  },
+  "totalStudentsEvaluated": 0,
+  "totalStudentsInYear": 5,
+  "categories": ["Coding", "Aptitude", "Reasoning", "Verbal"],
+  "message": "No students found with scores > 0 for year 2026 in branch CSE"
 }
 ```
 
@@ -160,16 +229,16 @@ curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
 
 | Feature | Year-Specific Leaderboard | Overall Leaderboard |
 |---------|---------------------------|---------------------|
-| **Scope** | Single graduation year | All graduation years |
+| **Scope** | Single graduation year | Single graduation year with overall performance |
 | **Endpoint** | `/api/admin/leaderboard/:year` | `/api/admin/overall-leaderboard/:year` |
-| **Data Source** | One collection (e.g., 2026_students) | All student collections |
-| **Use Case** | Year-wise performance analysis | Institution-wide excellence |
-| **Response** | Students from specified year only | Top performers across all years |
+| **Data Source** | One collection (e.g., 2026_students) | One collection (e.g., 2026_students) |
+| **Use Case** | Year-wise performance analysis | Overall ranking within a specific year |
+| **Response** | Students from specified year only | Top performers from specified year with detailed scoring |
 
 ## Benefits
 
-1. **Comprehensive View**: See the best students across the entire institution
-2. **Fair Comparison**: Merit-based ranking regardless of graduation year
+1. **Focused Analysis**: See the best students within a specific graduation year
+2. **Fair Comparison**: Merit-based ranking within the same academic cohort
 3. **Efficient Processing**: Leverages optimized database fields
-4. **Flexible Analysis**: Provides both overall scores and category breakdowns
-5. **Scalable Design**: Automatically adapts to new year collections
+4. **Flexible Filtering**: Provides filtering by branch and section
+5. **Detailed Insights**: Category-wise breakdown and comprehensive student data

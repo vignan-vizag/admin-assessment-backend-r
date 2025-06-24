@@ -103,11 +103,32 @@ curl -X POST http://localhost:3000/api/exams \
   }'
 ```
 
-## 4. Overall Leaderboard (All Years)
+## 4. Overall Leaderboard (Specific Year) with Filters
 
-### Get Top 25 Students Across All Graduation Years
+### Get Top 25 Students for Graduation Year 2026
 ```bash
 curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### Get Top 10 CSE Students from 2026
+```bash
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026?branch=CSE&limit=10" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### Get Top 15 Students from CSE Section 1 in 2026
+```bash
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026?branch=CSE&section=1&limit=15" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### Get Top 5 Students from 2025 Graduation Year
+```bash
+curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2025?limit=5" \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -136,19 +157,31 @@ curl -X GET "http://localhost:4000/api/admin/overall-leaderboard/2026" \
       }
     }
   ],
-  "totalStudentsEvaluated": 250,
-  "studentsFromYears": [2023, 2024, 2025, 2026],
-  "totalCollectionsProcessed": 7,
+  "appliedFilters": {
+    "graduationYear": "2026",
+    "branch": "CSE",
+    "section": "1", 
+    "limit": 15
+  },
+  "totalStudentsEvaluated": 25,
+  "totalStudentsInYear": 150,
   "categories": ["Coding", "Aptitude", "Reasoning", "Verbal"],
-  "message": "Top 25 students overall leaderboard across all graduation years"
+  "message": "Top 15 students overall leaderboard for graduation year 2026 (Branch: CSE, Section: 1)"
 }
 ```
 
+### Available Filter Parameters
+- `branch`: Filter by academic branch (e.g., CSE, ECE, MECH)
+- `section`: Filter by section (requires branch parameter)  
+- `limit`: Number of top students to return (1-100, default: 25)
+
 ### Key Features
-- **Cross-Year Analysis**: Gets top students from ALL graduation year collections
-- **Institution-wide Ranking**: Best 25 students across the entire institution  
+- **Year-Specific Analysis**: Gets top students from the specified graduation year only
+- **Advanced Filtering**: Filter by branch, section, and result limit
+- **Overall Performance Ranking**: Best N students within the specified year
 - **Comprehensive Data**: Includes year, branch, section, and category breakdowns
 - **Performance Optimized**: Uses pre-calculated totalmarks field
+- **Filter Summary**: Shows which filters were applied in the response
 
 ## Important Notes
 

@@ -185,138 +185,148 @@ const getLeaderboard = async (req, res, next) => {
   }
 };
 
-// Get overall leaderboard - top 25 students across all graduation years with filters
+// Get overall leaderboard - top 25 students for a specific graduation year with filters
 const getOverallLeaderboard = async (req, res, next) => {
   try {
     const { year } = req.params;
-    const { branch, section, category, specificYear, limit = 25 } = req.query;
+    const { branch, section, limit } = req.query;
     
     if (!year) {
       return res.status(400).json({ message: 'Graduation year parameter is required' });
     }
 
-    // Parse limit to ensure it's a number
-    const studentLimit = parseInt(limit) || 25;
-
-    // Get all collections in the database
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    
-    // Filter for student collections (ending with '_students')
-    const studentCollections = collections
-      .filter(col => col.name.endsWith('_students'))
-      .map(col => col.name);
-
-    if (studentCollections.length === 0) {
-      return res.status(404).json({ message: 'No student collections found' });
+    // Parse limit with default of 25
+    const resultLimit = limit ? parseInt(limit) : 25;
+    if (resultLimit <= 0 || resultLimit > 100) {
+      return res.status(400).json({ message: 'Limit must be between 1 and 100' });
     }
 
-    let allStudentScores = [];
+    // Use the specified graduation year only
+    const Student = getStudentModelByYear(year);
 
-    // Process each year collection
-    for (const collectionName of studentCollections) {
-      try {
-        const yearMatch = collectionName.match(/^(\d{4})_students$/);
-        if (!yearMatch) continue;
-        
-        const studentYear = parseInt(yearMatch[1]);
-        
-        // If specificYear filter is provided, only process that year
-        if (specificYear && studentYear !== parseInt(specificYear)) {
-          continue;
-        }
-        
-        const Student = getStudentModelByYear(studentYear);
+    // Build query conditions for filtering
+    let queryConditions = {
+      'assignedTests.status': 'completed'
+    };
 
-        // Build query conditions for filtering
-        let queryConditions = {
-          'assignedTests.status': 'completed'
-        };
+    // Add branch filter if specified
+    if (branch) {
+      queryConditions.branch = branch;
+    }
 
-        // Add branch filter if provided
-        if (branch) {
-          queryConditions.branch = new RegExp(branch, 'i'); // Case-insensitive match
-        }
-
-        // Add section filter if provided
-        if (section) {
-          queryConditions.section = new RegExp(section, 'i'); // Case-insensitive match
-        }
-
-        // Get students with applied filters
-        const students = await Student.find(queryConditions)
-          .select('name rollno branch section assignedTests totalmarks year');
-
-        if (students && students.length > 0) {
-          // Process students from this year collection
-          const yearStudentScores = students.map(student => {
-            let totalTests = 0;
-            let categoryTotals = { coding: 0, aptitude: 0, reasoning: 0, verbal: 0 };
-
-            student.assignedTests.forEach(assignedTest => {
-              if (assignedTest.status === 'completed' && assignedTest.marks) {
-                const marksObj = assignedTest.marks.toObject();
-                
-                // Update category totals
-                Object.keys(marksObj).forEach(category => {
-                  const categoryScore = marksObj[category] || 0;
-                  const categoryLower = category.toLowerCase();
-                  if (categoryTotals.hasOwnProperty(categoryLower)) {
-                    categoryTotals[categoryLower] += categoryScore;
-                  }
-                });
-                
-                totalTests += 1;
-              }
-            });
-
-            // Use the totalmarks field from database
-            const totalScore = student.totalmarks || 0;
-
-            return {
-              studentId: student._id,
-              name: student.name,
-              rollno: student.rollno,
-              branch: student.branch,
-              section: student.section,
-              year: studentYear,
-              totalScore: totalScore,
-              totalTests: totalTests,
-              averageScore: totalTests > 0 ? (totalScore / totalTests).toFixed(2) : 0,
-              categoryBreakdown: categoryTotals
-            };
-          });
-
-          // Only include students with scores > 0
-          const studentsWithScores = yearStudentScores.filter(student => student.totalScore > 0);
-          allStudentScores = allStudentScores.concat(studentsWithScores);
-        }
-      } catch (error) {
-        console.error(`Error processing collection ${collectionName}:`, error);
-        // Continue with other collections even if one fails
+    // Add section filter if specified (only works with branch)
+    if (section) {
+      if (!branch) {
+        return res.status(400).json({ message: 'Branch filter is required when using section filter' });
       }
+      queryConditions.section = section;
     }
 
-    if (allStudentScores.length === 0) {
-      return res.status(404).json({ message: 'No students found with completed tests across all years' });
+    // Get filtered students who have completed at least one test
+    const students = await Student.find(queryConditions)
+      .select('name rollno branch section assignedTests totalmarks year');
+
+    if (!students || students.length === 0) {
+      return res.status(200).json({ 
+        graduationYear: year,
+        overallLeaderboard: [],
+        appliedFilters: {
+          graduationYear: year,
+          branch: branch || 'All branches',
+          section: section || 'All sections',
+          limit: resultLimit
+        },
+        totalStudentsEvaluated: 0,
+        totalStudentsInYear: 0,
+        categories: ['Coding', 'Aptitude', 'Reasoning', 'Verbal'],
+        message: `No students found with completed tests for year ${year}${branch ? ` in branch ${branch}` : ''}${section ? ` section ${section}` : ''}`
+      });
     }
 
-    // Sort by total score (highest first) and take top 25
-    const overallLeaderboard = allStudentScores
+    // Process students to get their scores and category breakdown
+    const studentScores = students.map(student => {
+      let totalTests = 0;
+      let categoryTotals = { coding: 0, aptitude: 0, reasoning: 0, verbal: 0 };
+
+      student.assignedTests.forEach(assignedTest => {
+        if (assignedTest.status === 'completed' && assignedTest.marks) {
+          const marksObj = assignedTest.marks.toObject();
+          
+          // Update category totals
+          Object.keys(marksObj).forEach(category => {
+            const categoryScore = marksObj[category] || 0;
+            const categoryLower = category.toLowerCase();
+            if (categoryTotals.hasOwnProperty(categoryLower)) {
+              categoryTotals[categoryLower] += categoryScore;
+            }
+          });
+          
+          totalTests += 1;
+        }
+      });
+
+      // Use the totalmarks field from database
+      const totalScore = student.totalmarks || 0;
+
+      return {
+        studentId: student._id,
+        name: student.name,
+        rollno: student.rollno,
+        branch: student.branch,
+        section: student.section,
+        year: parseInt(year),
+        totalScore: totalScore,
+        totalTests: totalTests,
+        averageScore: totalTests > 0 ? (totalScore / totalTests).toFixed(2) : 0,
+        categoryBreakdown: categoryTotals
+      };
+    });
+
+    // Only include students with scores > 0
+    const studentsWithScores = studentScores.filter(student => student.totalScore > 0);
+
+    if (studentsWithScores.length === 0) {
+      return res.status(200).json({ 
+        graduationYear: year,
+        overallLeaderboard: [],
+        appliedFilters: {
+          graduationYear: year,
+          branch: branch || 'All branches',
+          section: section || 'All sections',
+          limit: resultLimit
+        },
+        totalStudentsEvaluated: 0,
+        totalStudentsInYear: students.length,
+        categories: ['Coding', 'Aptitude', 'Reasoning', 'Verbal'],
+        message: `No students found with scores > 0 for year ${year}${branch ? ` in branch ${branch}` : ''}${section ? ` section ${section}` : ''}`
+      });
+    }
+
+    // Sort by total score (highest first) and take top N (based on limit)
+    const overallLeaderboard = studentsWithScores
       .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, 25)
+      .slice(0, resultLimit)
       .map((student, index) => ({
         rank: index + 1,
         ...student
       }));
 
+    // Build filter summary
+    const appliedFilters = {
+      graduationYear: year,
+      branch: branch || 'All branches',
+      section: section || 'All sections',
+      limit: resultLimit
+    };
+
     res.json({
       graduationYear: year,
       overallLeaderboard: overallLeaderboard,
-      totalStudentsEvaluated: allStudentScores.length,
-      studentsFromYears: [...new Set(allStudentScores.map(s => s.year))].sort(),
-      totalCollectionsProcessed: studentCollections.length,
+      appliedFilters: appliedFilters,
+      totalStudentsEvaluated: studentsWithScores.length,
+      totalStudentsInYear: students.length,
       categories: ['Coding', 'Aptitude', 'Reasoning', 'Verbal'],
-      message: `Top ${overallLeaderboard.length} students overall leaderboard across all graduation years`
+      message: `Top ${overallLeaderboard.length} students overall leaderboard for graduation year ${year}${branch ? ` (Branch: ${branch}${section ? `, Section: ${section}` : ''})` : ''}`
     });
 
   } catch (error) {
