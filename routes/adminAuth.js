@@ -1,5 +1,5 @@
 const express = require('express');
-const { adminLogin, getAdminProfile, getLeaderboard, validateAdminToken } = require('../controllers/adminAuth');
+const { adminLogin, getAdminProfile, getLeaderboard, getOverallLeaderboard, validateAdminToken } = require('../controllers/adminAuth');
 const { authenticateAdmin } = require('../middlewares/adminAuth');
 
 const router = express.Router();
@@ -15,6 +15,9 @@ router.get('/profile', authenticateAdmin, getAdminProfile);
 
 // Leaderboard route (protected) - get top 25 students by total scores
 router.get('/leaderboard/:year', authenticateAdmin, getLeaderboard);
+
+// Overall leaderboard route (protected) - get top 25 students across all graduation years
+router.get('/overall-leaderboard/:year', authenticateAdmin, getOverallLeaderboard);
 
 // Test route for admin authentication
 router.get('/test', authenticateAdmin, (req, res) => {
