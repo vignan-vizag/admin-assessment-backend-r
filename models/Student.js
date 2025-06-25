@@ -13,7 +13,7 @@ const studentSchema = new mongoose.Schema({
   totalmarks: { type: Number, default: 0 }, // Total marks scored across all tests
   assignedTests: [{
     testId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Test', required: true },
-    status:      { type: String, enum: ['pending', 'completed', 'in-progress'], default: 'pending' },
+    status:      { type: String, enum: ['pending', 'completed', 'in-progress', 'writing'], default: 'pending' },
     marks:       { type: Map, of: Number, default: {}, required: function () { return this.status === 'completed'; } },
     submittedAt: { type: Date, required: function () { return this.status === 'completed'; } },
     start:       { type: Date, required: false },

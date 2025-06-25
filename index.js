@@ -15,6 +15,9 @@ const testRoutes = require('./routes/testRoutes');
 // Import admin controller for creating default accounts
 const { createDefaultAdmins } = require('./controllers/adminAuth');
 
+// Import exam scheduler
+const { initializeExamScheduler } = require('./services/examScheduler');
+
 const app = express();
 
 // Middleware
@@ -39,6 +42,9 @@ const PORT = process.env.PORT || 3000;
 connectDB().then(() => {
   // Create default admin accounts after DB connection
   createDefaultAdmins();
+  
+  // Initialize the exam scheduler
+  initializeExamScheduler();
   
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

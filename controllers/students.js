@@ -306,8 +306,8 @@ const startTest = async (req, res) => {
         // Set the start time for the test
         assignedTest.start = new Date();
 
-        // Update the test status to 'in progress' or similar if needed
-        assignedTest.status = 'in-progress'; // or any other status you'd like to set
+        // Update the test status to 'writing' when student starts the test
+        assignedTest.status = 'writing';
 
         // Save the updated student record
         await student.save();
