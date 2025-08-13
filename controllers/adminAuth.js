@@ -112,6 +112,7 @@ const getLeaderboard = async (req, res, next) => {
     const Student = getStudentModelByYear(year);
     
     // Get all students who have completed at least one test
+
     const students = await Student.find({
       'assignedTests.status': 'completed'
     }).select('name rollno branch section assignedTests totalmarks');
@@ -145,8 +146,13 @@ const getLeaderboard = async (req, res, next) => {
         }
       });
 
-      // Use the totalmarks field from database instead of calculating
-      const totalScore = student.totalmarks || 0;
+      // Use the totalmarks field from database, but if it's 0 or not set, calculate from categoryTotals
+      let totalScore = student.totalmarks || 0;
+      
+      // If totalmarks is 0 but student has completed tests, calculate from marks
+      if (totalScore === 0 && totalTests > 0) {
+        totalScore = Object.values(categoryTotals).reduce((sum, score) => sum + score, 0);
+      }
 
       return {
         studentId: student._id,
@@ -265,8 +271,13 @@ const getOverallLeaderboard = async (req, res, next) => {
         }
       });
 
-      // Use the totalmarks field from database
-      const totalScore = student.totalmarks || 0;
+      // Use the totalmarks field from database, but if it's 0 or not set, calculate from categoryTotals
+      let totalScore = student.totalmarks || 0;
+      
+      // If totalmarks is 0 but student has completed tests, calculate from marks
+      if (totalScore === 0 && totalTests > 0) {
+        totalScore = Object.values(categoryTotals).reduce((sum, score) => sum + score, 0);
+      }
 
       return {
         studentId: student._id,

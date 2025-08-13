@@ -1,0 +1,8 @@
+MongoDB Connected...
+Server running on port 4000
+[Exam Scheduler] Dynamic exam offline scheduler initialized
+[Exam Scheduler] Each exam will be automatically scheduled when set to live
+[Exam Scheduler] Will mark students with pending status as absent (-1 marks) when exams go offline
+Connected successfully to MongoDB server
+Admin Login Started
+Password Match Result: true
